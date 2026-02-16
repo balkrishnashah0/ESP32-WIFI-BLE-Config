@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESP32 Installer Dashboard</title>
+<style>
+  body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 20px; 
+    max-width: 400px; 
+    margin: auto; 
+    background: #f5f5f5;
+  }
+  .container {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  h2 {
+    color: #333;
+    margin-top: 0;
+  }
+  input, button { 
+    display: block; 
+    margin: 10px 0; 
+    width: 100%; 
+    padding: 12px; 
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+    font-size: 14px;
+  }
+  button {
+    background: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  #status { 
+    margin-top: 20px; 
+    padding: 15px;
+    border-radius: 5px;
+    background: #e9ecef;
+    color: #333;
+    font-size: 14px;
+  }
+  .success { background: #d4edda !important; color: #155724 !important; }
+  .error { background: #f8d7da !important; color: #721c24 !important; }
+  .warning { background: #fff3cd !important; color: #856404 !important; }
+  .section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 5px;
+  }
+  .section-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #495057;
+  }
+  .help-box {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 20px 0;
+    font-size: 13px;
+  }
+  .help-box strong {
+    display: block;
+    margin-bottom: 10px;
+    color: #856404;
+  }
+  .help-box ol {
+    margin: 10px 0;
+    padding-left: 20px;
+  }
+  .help-box li {
+    margin: 5px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>ESP32 Installer Dashboard</h2>
+
+  <div id="bluetoothCheck"></div>
+
+  <div class="section">
+    <div class="section-title">1. Connect to ESP32</div>
+    <button id="connectBtn">Connect via Bluetooth</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">2. Verify Installer PIN</div>
+    <input type="text" id="pinInput" placeholder="Enter Installer PIN (e.g., 123456)" disabled>
+    <button id="verifyPinBtn" disabled>Verify PIN</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">3. Configure Wi-Fi</div>
+    <input type="text" id="ssidInput" placeholder="Wi-Fi Network Name (SSID)" disabled>
+    <input type="password" id="passInput" placeholder="Wi-Fi Password" disabled>
+    <button id="sendWiFiBtn" disabled>Send Wi-Fi Credentials</button>
+  </div>
+
+  <div id="status">Status: Checking Bluetooth support...</div>
+</div>
+
+<script>
+let device;
+let pinChar;
+let wifiChar;
+let pinVerified = false;
+
+// UUIDs must match ESP32 exactly - FIXED: ef01 instead of efgh
+const SERVICE_UUID = '00001234-0000-1000-8000-00805f9b34fb';
+const PIN_UUID = '0000abcd-0000-1000-8000-00805f9b34fb';
+const WIFI_UUID = '0000ef01-0000-1000-8000-00805f9b34fb';
+
+// Check if Web Bluetooth is available
+function checkBluetoothSupport() {
+  const checkDiv = document.getElementById('bluetoothCheck');
+  
+  if (!navigator.bluetooth) {
+    checkDiv.innerHTML = `
+      <div class="help-box">
+        <strong>⚠️ Web Bluetooth Not Available</strong>
+        <p>Please enable Web Bluetooth in Brave:</p>
+        <ol>
+          <li>Go to <code>brave://flags/#enable-web-bluetooth</code></li>
+          <li>Set "Web Bluetooth" to <strong>Enabled</strong></li>
+          <li>Click <strong>Relaunch</strong> at the bottom</li>
+          <li>Refresh this page</li>
+        </ol>
+        <p><strong>Or:</strong> Click the Brave shield icon in address bar → Advanced controls → Allow Device recognition</p>
+      </div>
+    `;
+    updateStatus('✗ Web Bluetooth is disabled in your browser', 'error');
+    document.getElementById('connectBtn').disabled = true;
+    return false;
+  }
+  
+  updateStatus('Ready to connect. Click "Connect via Bluetooth" to begin.', 'success');
+  return true;
+}
+
+function updateStatus(message, type = 'info') {
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerText = message;
+  statusDiv.className = type;
+}
+
+function enableStep(step) {
+  if (step >= 2) {
+    document.getElementById('pinInput').disabled = false;
+    document.getElementById('verifyPinBtn').disabled = false;
+  }
+  if (step >= 3) {
+    document.getElementById('ssidInput').disabled = false;
+    document.getElementById('passInput').disabled = false;
+    document.getElementById('sendWiFiBtn').disabled = false;
+  }
+}
+
+document.getElementById('connectBtn').onclick = async () => {
+  try {
+    updateStatus('Scanning for ESP32_Config...', 'warning');
+    
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'ESP32_Config' }],
+      optionalServices: [SERVICE_UUID]
+    });
+    
+    updateStatus('Connecting to ESP32...', 'warning');
+    const server = await device.gatt.connect();
+    
+    updateStatus('Getting BLE service...', 'warning');
+    const service = await server.getPrimaryService(SERVICE_UUID);
+    
+    updateStatus('Getting characteristics...', 'warning');
+    pinChar = await service.getCharacteristic(PIN_UUID);
+    wifiChar = await service.getCharacteristic(WIFI_UUID);
+    
+    updateStatus('✓ Connected to ESP32! Please verify PIN.', 'success');
+    enableStep(2);
+    
+    // Handle disconnection
+    device.addEventListener('gattserverdisconnected', () => {
+      updateStatus('✗ Disconnected from ESP32', 'warning');
+      pinVerified = false;
+      document.getElementById('pinInput').disabled = true;
+      document.getElementById('verifyPinBtn').disabled = true;
+      document.getElementById('ssidInput').disabled = true;
+      document.getElementById('passInput').disabled = true;
+      document.getElementById('sendWiFiBtn').disabled = true;
+    });
+    
+  } catch (err) {
+    console.error('Connection error:', err);
+    
+    if (err.name === 'NotFoundError') {
+      updateStatus('✗ ESP32_Config not found. Make sure ESP32 is powered on and in BLE mode.', 'error');
+    } else if (err.name === 'SecurityError') {
+      updateStatus('✗ Bluetooth blocked. Check Brave shields and enable Device recognition.', 'error');
+    } else {
+      updateStatus('✗ Connection failed: ' + err.message, 'error');
+    }
+  }
+};
+
+document.getElementById('verifyPinBtn').onclick = async () => {
+  if (!pinChar) {
+    updateStatus('✗ Not connected to ESP32', 'error');
+    return;
+  }
+  
+  const pin = document.getElementById('pinInput').value.trim();
+  
+  if (!pin) {
+    updateStatus('✗ Please enter a PIN', 'error');
+    return;
+  }
+  
+  try {
+    updateStatus('Sending PIN...', 'warning');
+    await pinChar.writeValue(new TextEncoder().encode(pin));
+    
+    // Wait a moment for ESP32 to process
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    pinVerified = true;
+    updateStatus('✓ PIN sent! You can now configure Wi-Fi.', 'success');
+    enableStep(3);
+    
+  } catch (err) {
+    console.error('PIN error:', err);
+    updateStatus('✗ Failed to send PIN: ' + err.message, 'error');
+  }
+};
+
+document.getElementById('sendWiFiBtn').onclick = async () => {
+  if (!wifiChar) {
+    updateStatus('✗ Not connected to ESP32', 'error');
+    return;
+  }
+  
+  if (!pinVerified) {
+    updateStatus('✗ Please verify PIN first', 'error');
+    return;
+  }
+  
+  const ssid = document.getElementById('ssidInput').value.trim();
+  const pass = document.getElementById('passInput').value;
+  
+  if (!ssid || !pass) {
+    updateStatus('✗ Please enter both SSID and password', 'error');
+    return;
+  }
+  
+  const credentials = `${ssid}|${pass}`;
+  
+  try {
+    updateStatus('Sending Wi-Fi credentials...', 'warning');
+    await wifiChar.writeValue(new TextEncoder().encode(credentials));
+    
+    updateStatus('✓ Wi-Fi credentials sent! ESP32 will restart and connect.', 'success');
+    
+    // Disable all inputs after successful configuration
+    setTimeout(() => {
+      document.getElementById('pinInput').disabled = true;
+      document.getElementById('verifyPinBtn').disabled = true;
+      document.getElementById('ssidInput').disabled = true;
+      document.getElementById('passInput').disabled = true;
+      document.getElementById('sendWiFiBtn').disabled = true;
+      updateStatus('✓ Configuration complete! ESP32 is connecting to Wi-Fi...', 'success');
+    }, 1000);
+    
+  } catch (err) {
+    console.error('Wi-Fi error:', err);
+    updateStatus('✗ Failed to send credentials: ' + err.message, 'error');
+  }
+};
+
+// Check Bluetooth support on page load
+window.addEventListener('DOMContentLoaded', checkBluetoothSupport);
+</script>
+
+</body>
+</html>
