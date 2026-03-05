@@ -3,298 +3,659 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ESP32 Installer Dashboard</title>
+<title>ESP32 Installer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    padding: 20px; 
-    max-width: 400px; 
-    margin: auto; 
-    background: #f5f5f5;
+  :root {
+    --bg: #0d0f12;
+    --surface: #151820;
+    --surface2: #1c2130;
+    --border: #252d3d;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --success: #00e676;
+    --warn: #ffab40;
+    --danger: #ff5252;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
   }
-  .container {
-    background: white;
-    padding: 30px;
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px 48px;
+  }
+
+  /* Subtle grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 440px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 28px;
+  }
+  .header-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0.8;
+  }
+  .header h1 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  /* Step card */
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
   }
-  h2 {
-    color: #333;
-    margin-top: 0;
+  .step-card.active { border-color: rgba(0,212,255,0.3); }
+  .step-card.done { border-color: rgba(0,230,118,0.25); }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
   }
-  input, button { 
-    display: block; 
-    margin: 10px 0; 
-    width: 100%; 
-    padding: 12px; 
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    box-sizing: border-box;
-    font-size: 14px;
+  .step-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: all 0.2s;
   }
-  button {
-    background: #007bff;
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
+  .step-card.active .step-num {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 8px rgba(0,212,255,0.3);
   }
-  button:hover {
-    background: #0056b3;
+  .step-card.done .step-num {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(0,230,118,0.08);
   }
-  button:disabled {
-    background: #ccc;
+  .step-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .step-sublabel {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+    font-family: var(--mono);
+  }
+
+  .step-body {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Inputs */
+  input[type="text"],
+  input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+  }
+  input:disabled {
+    opacity: 0.35;
     cursor: not-allowed;
   }
-  #status { 
-    margin-top: 20px; 
-    padding: 15px;
-    border-radius: 5px;
-    background: #e9ecef;
-    color: #333;
-    font-size: 14px;
+  input::placeholder { color: var(--muted); }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
-  .success { background: #d4edda !important; color: #155724 !important; }
-  .error { background: #f8d7da !important; color: #721c24 !important; }
-  .warning { background: #fff3cd !important; color: #856404 !important; }
-  .section {
-    margin: 20px 0;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 5px;
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
   }
-  .section-title {
-    font-weight: bold;
-    margin-bottom: 10px;
-    color: #495057;
+  .btn-primary:hover { background: #33dcff; box-shadow: 0 0 16px rgba(0,212,255,0.35); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
   }
-  .help-box {
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    padding: 15px;
-    border-radius: 5px;
-    margin: 20px 0;
-    font-size: 13px;
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-success {
+    background: var(--success);
+    color: #000;
   }
-  .help-box strong {
-    display: block;
-    margin-bottom: 10px;
-    color: #856404;
+  .btn-success:hover { background: #33eb8e; box-shadow: 0 0 16px rgba(0,230,118,0.35); }
+
+  .btn-sm {
+    padding: 7px 12px;
+    font-size: 11px;
   }
-  .help-box ol {
-    margin: 10px 0;
-    padding-left: 20px;
+
+  /* SSID list */
+  .ssid-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
   }
-  .help-box li {
-    margin: 5px 0;
+  .ssid-list::-webkit-scrollbar { width: 4px; }
+  .ssid-list::-webkit-scrollbar-track { background: var(--surface); }
+  .ssid-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .ssid-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
   }
+  .ssid-item:hover { border-color: rgba(0,212,255,0.4); color: var(--accent); }
+  .ssid-item.selected {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.07);
+    color: var(--accent);
+  }
+  .ssid-icon { font-size: 14px; flex-shrink: 0; }
+  .ssid-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ssid-check { color: var(--accent); font-size: 12px; display: none; }
+  .ssid-item.selected .ssid-check { display: block; }
+
+  .empty-list {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+
+  /* Status bar */
+  .status-bar {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.5;
+    transition: all 0.2s;
+  }
+  .status-bar.success { border-color: rgba(0,230,118,0.3); color: var(--success); background: rgba(0,230,118,0.05); }
+  .status-bar.error   { border-color: rgba(255,82,82,0.3); color: var(--danger); background: rgba(255,82,82,0.05); }
+  .status-bar.warning { border-color: rgba(255,171,64,0.3); color: var(--warn); background: rgba(255,171,64,0.05); }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+    margin-top: 4px;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .status-bar.success .status-dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .status-bar.error   .status-dot { background: var(--danger); }
+  .status-bar.warning .status-dot { background: var(--warn); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0 12px;
+  }
+
+  /* BT warning */
+  .bt-warning {
+    background: rgba(255,171,64,0.07);
+    border: 1px solid rgba(255,171,64,0.3);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--warn);
+  }
+  .bt-warning strong { display: block; margin-bottom: 6px; font-family: var(--mono); }
+  .bt-warning ol { padding-left: 16px; }
+  .bt-warning li { margin: 4px 0; color: var(--text); opacity: 0.8; }
+  code {
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.07);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+
+  .row { display: flex; gap: 8px; }
+  .row .btn { flex: 1; }
+
+  /* Spinning loader */
+  .spin {
+    display: inline-block;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <h2>ESP32 Installer Dashboard</h2>
+<div class="wrapper">
 
-  <div id="bluetoothCheck"></div>
-
-  <div class="section">
-    <div class="section-title">1. Connect to ESP32</div>
-    <button id="connectBtn">Connect via Bluetooth</button>
+  <div class="header">
+    <div class="header-tag">// field tool v1.0</div>
+    <h1>ESP32 Installer</h1>
+    <p>Bluetooth provisioning dashboard</p>
   </div>
 
-  <div class="section">
-    <div class="section-title">2. Verify Installer PIN</div>
-    <input type="text" id="pinInput" placeholder="Enter Installer PIN (e.g., 123456)" disabled>
-    <button id="verifyPinBtn" disabled>Verify PIN</button>
+  <div id="btWarning"></div>
+
+  <div style="font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:16px;">
+    💡 To forget saved Wi-Fi on the device — hold the <strong style="color:var(--text)">BOOT button</strong> for 3 seconds. ESP32 will restart into provisioning mode.
   </div>
 
-  <div class="section">
-    <div class="section-title">3. Configure Wi-Fi</div>
-    <input type="text" id="ssidInput" placeholder="Wi-Fi Network Name (SSID)" disabled>
-    <input type="password" id="passInput" placeholder="Wi-Fi Password" disabled>
-    <button id="sendWiFiBtn" disabled>Send Wi-Fi Credentials</button>
+  <!-- Step 1: Connect -->
+  <div class="step-card active" id="card1">
+    <div class="step-header">
+      <div class="step-num">01</div>
+      <div>
+        <div class="step-label">Connect to Device</div>
+        <div class="step-sublabel">BLE · ESP32_Config</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <button class="btn btn-primary" id="connectBtn">⚡ Connect via Bluetooth</button>
+    </div>
   </div>
 
-  <div id="status">Status: Checking Bluetooth support...</div>
+  <!-- Step 2: PIN -->
+  <div class="step-card" id="card2">
+    <div class="step-header">
+      <div class="step-num">02</div>
+      <div>
+        <div class="step-label">Verify Installer PIN</div>
+        <div class="step-sublabel">UUID · 0000abcd</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <input type="text" id="pinInput" placeholder="Enter PIN (e.g. 123456)" disabled>
+      <button class="btn btn-primary" id="verifyPinBtn" disabled>→ Verify PIN</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Scan & Select -->
+  <div class="step-card" id="card3">
+    <div class="step-header">
+      <div class="step-num">03</div>
+      <div>
+        <div class="step-label">Select Wi-Fi Network</div>
+        <div class="step-sublabel">UUID · 0000ef02 / ef03</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <button class="btn btn-secondary" id="scanBtn" disabled>⟳ Scan Networks</button>
+      <div class="ssid-list" id="ssidList">
+        <div class="empty-list">Scan to discover nearby networks</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Password & Send -->
+  <div class="step-card" id="card4">
+    <div class="step-header">
+      <div class="step-num">04</div>
+      <div>
+        <div class="step-label">Enter Password & Connect</div>
+        <div class="step-sublabel">UUID · 0000ef01</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <input type="text" id="ssidInput" placeholder="Selected SSID" disabled readonly>
+      <input type="password" id="passInput" placeholder="Wi-Fi Password" disabled>
+      <button class="btn btn-success" id="sendWiFiBtn" disabled>✓ Send Credentials &amp; Connect</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-dot"></div>
+    <span id="statusText">Checking Bluetooth availability…</span>
+  </div>
+
 </div>
 
 <script>
-let device;
-let pinChar;
-let wifiChar;
+// ─── UUIDs ────────────────────────────────────────────────────────────────────
+const SERVICE_UUID   = '00001234-0000-1000-8000-00805f9b34fb';
+const PIN_UUID       = '0000abcd-0000-1000-8000-00805f9b34fb';
+const WIFI_UUID      = '0000ef01-0000-1000-8000-00805f9b34fb';
+const SCAN_UUID      = '0000ef02-0000-1000-8000-00805f9b34fb';
+const SSID_LIST_UUID = '0000ef03-0000-1000-8000-00805f9b34fb';
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let device, pinChar, wifiChar, scanChar, ssidListChar;
 let pinVerified = false;
+let selectedSSID = '';
 
-// UUIDs must match ESP32 exactly - FIXED: ef01 instead of efgh
-const SERVICE_UUID = '00001234-0000-1000-8000-00805f9b34fb';
-const PIN_UUID = '0000abcd-0000-1000-8000-00805f9b34fb';
-const WIFI_UUID = '0000ef01-0000-1000-8000-00805f9b34fb';
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+function setStatus(msg, type = '') {
+  document.getElementById('statusText').textContent = msg;
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar' + (type ? ' ' + type : '');
+}
 
-// Check if Web Bluetooth is available
-function checkBluetoothSupport() {
-  const checkDiv = document.getElementById('bluetoothCheck');
-  
+function setCardState(cardId, state) {
+  const el = document.getElementById(cardId);
+  el.className = 'step-card' + (state ? ' ' + state : '');
+}
+
+function enableElement(id, enabled = true) {
+  document.getElementById(id).disabled = !enabled;
+}
+
+// ─── Bluetooth Check ─────────────────────────────────────────────────────────
+function checkBluetooth() {
   if (!navigator.bluetooth) {
-    checkDiv.innerHTML = `
-      <div class="help-box">
-        <strong>⚠️ Web Bluetooth Not Available</strong>
-        <p>Please enable Web Bluetooth in Brave:</p>
+    document.getElementById('btWarning').innerHTML = `
+      <div class="bt-warning">
+        <strong>⚠ Web Bluetooth Not Available</strong>
+        <p>Enable it in your browser:</p>
         <ol>
           <li>Go to <code>brave://flags/#enable-web-bluetooth</code></li>
-          <li>Set "Web Bluetooth" to <strong>Enabled</strong></li>
-          <li>Click <strong>Relaunch</strong> at the bottom</li>
-          <li>Refresh this page</li>
+          <li>Set to <strong>Enabled</strong> → Relaunch</li>
+          <li>Or: Shield icon → Advanced → Allow Device recognition</li>
         </ol>
-        <p><strong>Or:</strong> Click the Brave shield icon in address bar → Advanced controls → Allow Device recognition</p>
-      </div>
-    `;
-    updateStatus('✗ Web Bluetooth is disabled in your browser', 'error');
-    document.getElementById('connectBtn').disabled = true;
+      </div>`;
+    setStatus('Web Bluetooth is disabled in this browser.', 'error');
+    enableElement('connectBtn', false);
     return false;
   }
-  
-  updateStatus('Ready to connect. Click "Connect via Bluetooth" to begin.', 'success');
+  setStatus('Ready. Click "Connect via Bluetooth" to begin.', 'success');
   return true;
 }
 
-function updateStatus(message, type = 'info') {
-  const statusDiv = document.getElementById('status');
-  statusDiv.innerText = message;
-  statusDiv.className = type;
-}
-
-function enableStep(step) {
-  if (step >= 2) {
-    document.getElementById('pinInput').disabled = false;
-    document.getElementById('verifyPinBtn').disabled = false;
-  }
-  if (step >= 3) {
-    document.getElementById('ssidInput').disabled = false;
-    document.getElementById('passInput').disabled = false;
-    document.getElementById('sendWiFiBtn').disabled = false;
-  }
-}
-
+// ─── Connect ──────────────────────────────────────────────────────────────────
 document.getElementById('connectBtn').onclick = async () => {
   try {
-    updateStatus('Scanning for ESP32_Config...', 'warning');
-    
+    setStatus('Opening device picker…', 'warning');
     device = await navigator.bluetooth.requestDevice({
       filters: [{ name: 'ESP32_Config' }],
       optionalServices: [SERVICE_UUID]
     });
-    
-    updateStatus('Connecting to ESP32...', 'warning');
+
+    setStatus('Connecting to ESP32…', 'warning');
     const server = await device.gatt.connect();
-    
-    updateStatus('Getting BLE service...', 'warning');
+
+    setStatus('Fetching BLE service…', 'warning');
     const service = await server.getPrimaryService(SERVICE_UUID);
-    
-    updateStatus('Getting characteristics...', 'warning');
-    pinChar = await service.getCharacteristic(PIN_UUID);
-    wifiChar = await service.getCharacteristic(WIFI_UUID);
-    
-    updateStatus('✓ Connected to ESP32! Please verify PIN.', 'success');
-    enableStep(2);
-    
-    // Handle disconnection
-    device.addEventListener('gattserverdisconnected', () => {
-      updateStatus('✗ Disconnected from ESP32', 'warning');
-      pinVerified = false;
-      document.getElementById('pinInput').disabled = true;
-      document.getElementById('verifyPinBtn').disabled = true;
-      document.getElementById('ssidInput').disabled = true;
-      document.getElementById('passInput').disabled = true;
-      document.getElementById('sendWiFiBtn').disabled = true;
-    });
-    
+
+    setStatus('Getting characteristics…', 'warning');
+    pinChar      = await service.getCharacteristic(PIN_UUID);
+    wifiChar     = await service.getCharacteristic(WIFI_UUID);
+    scanChar     = await service.getCharacteristic(SCAN_UUID);
+    ssidListChar = await service.getCharacteristic(SSID_LIST_UUID);
+
+    // Subscribe to SSID list notifications
+    await ssidListChar.startNotifications();
+    ssidListChar.addEventListener('characteristicvaluechanged', onSSIDListReceived);
+
+    setStatus('Connected to ESP32_Config. Enter PIN to continue.', 'success');
+    setCardState('card1', 'done');
+    setCardState('card2', 'active');
+    enableElement('pinInput');
+    enableElement('verifyPinBtn');
+
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+
   } catch (err) {
-    console.error('Connection error:', err);
-    
+    console.error(err);
     if (err.name === 'NotFoundError') {
-      updateStatus('✗ ESP32_Config not found. Make sure ESP32 is powered on and in BLE mode.', 'error');
+      setStatus('Device not found. Make sure ESP32 is powered and in BLE mode.', 'error');
     } else if (err.name === 'SecurityError') {
-      updateStatus('✗ Bluetooth blocked. Check Brave shields and enable Device recognition.', 'error');
+      setStatus('Bluetooth blocked. Check browser shield settings.', 'error');
     } else {
-      updateStatus('✗ Connection failed: ' + err.message, 'error');
+      setStatus('Connection failed: ' + err.message, 'error');
     }
   }
 };
 
+function onDisconnected() {
+  setStatus('Disconnected from ESP32.', 'warning');
+  pinVerified = false;
+  ['pinInput','verifyPinBtn','scanBtn','passInput','sendWiFiBtn'].forEach(id => enableElement(id, false));
+  setCardState('card2', ''); setCardState('card3', ''); setCardState('card4', '');
+}
+
+// ─── PIN ──────────────────────────────────────────────────────────────────────
 document.getElementById('verifyPinBtn').onclick = async () => {
-  if (!pinChar) {
-    updateStatus('✗ Not connected to ESP32', 'error');
-    return;
-  }
-  
+  if (!pinChar) return;
   const pin = document.getElementById('pinInput').value.trim();
-  
-  if (!pin) {
-    updateStatus('✗ Please enter a PIN', 'error');
-    return;
-  }
-  
+  if (!pin) { setStatus('Please enter a PIN.', 'error'); return; }
+
   try {
-    updateStatus('Sending PIN...', 'warning');
+    setStatus('Sending PIN…', 'warning');
     await pinChar.writeValue(new TextEncoder().encode(pin));
-    
-    // Wait a moment for ESP32 to process
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await new Promise(r => setTimeout(r, 500));
+
     pinVerified = true;
-    updateStatus('✓ PIN sent! You can now configure Wi-Fi.', 'success');
-    enableStep(3);
-    
+    setStatus('PIN accepted. Scan for networks or configure Wi-Fi.', 'success');
+    setCardState('card2', 'done');
+    setCardState('card3', 'active');
+    enableElement('scanBtn');
   } catch (err) {
-    console.error('PIN error:', err);
-    updateStatus('✗ Failed to send PIN: ' + err.message, 'error');
+    setStatus('Failed to send PIN: ' + err.message, 'error');
   }
 };
 
+// ─── Scan ─────────────────────────────────────────────────────────────────────
+document.getElementById('scanBtn').onclick = async () => {
+  if (!scanChar || !pinVerified) return;
+
+  try {
+    const btn = document.getElementById('scanBtn');
+    btn.innerHTML = '<span class="spin">⟳</span> Scanning…';
+    btn.disabled = true;
+    setStatus('Triggering Wi-Fi scan on ESP32…', 'warning');
+
+    // Write anything to trigger scan
+    await scanChar.writeValue(new TextEncoder().encode('scan'));
+    setStatus('Scan triggered. Waiting for results…', 'warning');
+
+    // Results arrive via notification (onSSIDListReceived)
+    // Re-enable after timeout as fallback
+    setTimeout(() => {
+      btn.innerHTML = '⟳ Scan Again';
+      btn.disabled = false;
+    }, 8000);
+  } catch (err) {
+    setStatus('Scan failed: ' + err.message, 'error');
+    document.getElementById('scanBtn').innerHTML = '⟳ Scan Networks';
+    enableElement('scanBtn');
+  }
+};
+
+// ─── Receive SSID List ────────────────────────────────────────────────────────
+// ESP32 sends pipe-delimited string: "SSID1|SSID2|SSID3|..."
+function onSSIDListReceived(event) {
+  const raw = new TextDecoder().decode(event.target.value);
+  console.log('SSID list received:', raw);
+
+  const listEl = document.getElementById('ssidList');
+
+  // Re-enable scan button
+  const scanBtn = document.getElementById('scanBtn');
+  scanBtn.innerHTML = '⟳ Scan Again';
+  scanBtn.disabled = false;
+
+  if (!raw || raw.trim() === '') {
+    listEl.innerHTML = '<div class="empty-list">No networks found nearby.</div>';
+    setStatus('Scan complete. No networks found.', 'warning');
+    return;
+  }
+
+  const ssids = raw.split('|').map(s => s.trim()).filter(Boolean);
+
+  if (ssids.length === 0) {
+    listEl.innerHTML = '<div class="empty-list">No networks found nearby.</div>';
+    setStatus('Scan complete. No networks found.', 'warning');
+    return;
+  }
+
+  listEl.innerHTML = '';
+  ssids.forEach(ssid => {
+    const item = document.createElement('div');
+    item.className = 'ssid-item';
+    item.innerHTML = `
+      <span class="ssid-icon">📶</span>
+      <span class="ssid-name">${escapeHtml(ssid)}</span>
+      <span class="ssid-check">✓</span>
+    `;
+    item.onclick = () => selectSSID(ssid, item);
+    listEl.appendChild(item);
+  });
+
+  setStatus(`Found ${ssids.length} network${ssids.length > 1 ? 's' : ''}. Select one below.`, 'success');
+  setCardState('card3', 'done');
+}
+
+function selectSSID(ssid, el) {
+  // Deselect all
+  document.querySelectorAll('.ssid-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedSSID = ssid;
+
+  document.getElementById('ssidInput').value = ssid;
+  setCardState('card4', 'active');
+  enableElement('passInput');
+  enableElement('sendWiFiBtn');
+  document.getElementById('passInput').focus();
+  setStatus(`Selected: ${ssid}. Enter password to connect.`, 'success');
+}
+
+// ─── Send Credentials ─────────────────────────────────────────────────────────
+// Sends "SSID|password" to ESP32
 document.getElementById('sendWiFiBtn').onclick = async () => {
-  if (!wifiChar) {
-    updateStatus('✗ Not connected to ESP32', 'error');
-    return;
-  }
-  
-  if (!pinVerified) {
-    updateStatus('✗ Please verify PIN first', 'error');
-    return;
-  }
-  
+  if (!wifiChar || !pinVerified) return;
+
   const ssid = document.getElementById('ssidInput').value.trim();
   const pass = document.getElementById('passInput').value;
-  
-  if (!ssid || !pass) {
-    updateStatus('✗ Please enter both SSID and password', 'error');
-    return;
-  }
-  
-  const credentials = `${ssid}|${pass}`;
-  
+
+  if (!ssid) { setStatus('Please select a network.', 'error'); return; }
+  if (!pass)  { setStatus('Please enter a password.', 'error'); return; }
+
+  const payload = `${ssid}|${pass}`;
+
   try {
-    updateStatus('Sending Wi-Fi credentials...', 'warning');
-    await wifiChar.writeValue(new TextEncoder().encode(credentials));
-    
-    updateStatus('✓ Wi-Fi credentials sent! ESP32 will restart and connect.', 'success');
-    
-    // Disable all inputs after successful configuration
+    setStatus('Sending credentials to ESP32…', 'warning');
+    await wifiChar.writeValue(new TextEncoder().encode(payload));
+
+    setStatus(`✓ Credentials sent! ESP32 is restarting and connecting to "${ssid}"…`, 'success');
+    setCardState('card4', 'done');
+
+    // Lock down form after successful send
     setTimeout(() => {
-      document.getElementById('pinInput').disabled = true;
-      document.getElementById('verifyPinBtn').disabled = true;
-      document.getElementById('ssidInput').disabled = true;
-      document.getElementById('passInput').disabled = true;
-      document.getElementById('sendWiFiBtn').disabled = true;
-      updateStatus('✓ Configuration complete! ESP32 is connecting to Wi-Fi...', 'success');
+      ['ssidInput','passInput','sendWiFiBtn','scanBtn'].forEach(id => enableElement(id, false));
     }, 1000);
-    
   } catch (err) {
-    console.error('Wi-Fi error:', err);
-    updateStatus('✗ Failed to send credentials: ' + err.message, 'error');
+    setStatus('Failed to send credentials: ' + err.message, 'error');
   }
 };
 
-// Check Bluetooth support on page load
-window.addEventListener('DOMContentLoaded', checkBluetoothSupport);
+// ─── Util ─────────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
+window.addEventListener('DOMContentLoaded', checkBluetooth);
 </script>
 
 </body>
